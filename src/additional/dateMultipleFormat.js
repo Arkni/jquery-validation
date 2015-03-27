@@ -59,11 +59,75 @@
 		value      = value.split( separator );
 		dateFormat = dateFormat.split( separator );
 
-		var year  = value[ dateFormat.indexOf( "YYYY" ) ],
-			month = value[ dateFormat.indexOf( "MM" ) ],
-			day   = value[ dateFormat.indexOf( "DD" ) ];
+		var now = new Date(),
+			year  = value[ dateFormat.indexOf( "YYYY" ) ] ||
+			( ( Math.ceil( now.getFullYear() / 100 ) - 1 ) + value[ dateFormat.indexOf( "YY" ) ] ),
+			month = value[ dateFormat.indexOf( "MM" ) ] || value[ dateFormat.indexOf( "M" ) ],
+			day   = value[ dateFormat.indexOf( "DD" ) ] || value[ dateFormat.indexOf( "D" ) ];
 
 		return new Date( year, month - 1, day, 12, 0, 0 );
+	}
+
+	/**
+	 * This function is based on the dateFormat function from the Date Format 1.2.3
+	 * Credit to (c) 2007-2009 Steven Levithan <stevenlevithan.com>
+	 * MIT license
+	 * see http://blog.stevenlevithan.com/archives/date-time-format for the complete lib
+	 *
+	 * Return the date string formatted following the format provided as param
+	 *
+	 * @param {Date|String} date  The date object to format
+	 * @param {String} format     The date format
+	 * The format can be:
+	 *   - date: Consist of DD, MM, YYYY parts which are separated by the separator option
+	 * with
+	 *      d	   Day of the month as digits; no leading zero for single-digit days.
+	 *      dd	   Day of the month as digits; leading zero for single-digit days.
+	 *      m	   Month as digits; no leading zero for single-digit months.
+	 *      mm	   Month as digits; leading zero for single-digit months.
+	 *      yy	   Year as last two digits; leading zero for years less than 10.
+	 *      yyyy   Year represented by four digits.
+	 *
+	 * @returns {String}
+	 */
+	function dateFormater(date, format) {
+		format = format.toLowerCase();
+
+		var	token = /d{1,2}|m{1,2}|yy(?:yy)?/g,
+			pad = function( val, len ) {
+				val = String( val );
+				len = len || 2;
+				while ( val.length < len ) {
+					val = "0" + val;
+				}
+
+				return val;
+			}, d, m, y, flags;
+
+		// Passing date through Date applies Date.parse, if necessary
+		date = date ? new Date( date ) : new Date();
+
+		if ( isNaN( date ) ) {
+			throw new SyntaxError( "invalid date" );
+		}
+
+		format = String(format);
+
+		d = date.getDate();
+		m = date.getMonth();
+		y = date.getFullYear();
+		flags = {
+			d:    d,
+			dd:   pad(d),
+			m:    m + 1,
+			mm:   pad(m + 1),
+			yy:   String( y ).slice( 2 ),
+			yyyy: y
+		};
+
+		return format.replace( token, function( $0 ) {
+			return $0 in flags ? flags[ $0 ] : $0.slice( 1, $0.length - 1 );
+		});
 	}
 
 	/*
@@ -127,54 +191,82 @@
 		if ( options === true || $.isEmptyObject( options ) ) {
 			options = {
 				format: "DD/MM/YYYY",
-				separator: "/"
+				separator: "/",
+				outputFormat: "DD/MM/YYYY"
 			};
 		}
 
-		var format      = options.format ? options.format.toUpperCase() : "DD/MM/YYYY",
-			separator   = options.separator || "/",
-			dateFormats = format.split( separator ), // Split the format to 3 values YYYY, MM & DD
-			dateValues  = value.split( separator ),  // Split the date to 3 values year, month & day
-			year        = dateValues[ dateFormats.indexOf( "YYYY" ) ],
-			month       = dateValues[ dateFormats.indexOf( "MM" ) ],
-			day         = dateValues[ dateFormats.indexOf( "DD" ) ],
+		var $this = this, now = new Date(),
+			format, separator, dateFormats, dateValues, year, month, day,
 			date, minDate, maxDate, valid;
 
-		// Check if dateValues & dateFormats have the same length
-		// If no, exit with error
-		if ( dateValues.length !== dateFormats.length ) {
-			return false;
+		// If the format is an array of formats, then split each format (element) of the array
+		if ( $.isArray( options.format ) ) {
+			$.each( options.format, function( index, format ) {
+				valid = $.validator.methods.dateMultipleFormat.call($this, value, element, {
+					format: format,
+					separator: options.separator,
+					minDate: options.minDate,
+					maxDate: options.maxDate
+				} );
+
+				if ( valid ) {
+					options.outputFormat ? $( element ).val( dateFormater( parse( value, format, options.separator ), options.outputFormat ) ) : $.noop();
+					// To exit the $.each
+					return false;
+				}
+			});
+		} else {
+			format      = options.format ? options.format.toUpperCase() : "DD/MM/YYYY";
+			separator   = options.separator || "/";
+			dateFormats = format.split( separator ); // Split the format to 3 values YYYY, MM & DD
+			dateValues  = value.split( separator );  // Split the date to 3 values year, month & day
+			year        = dateValues[ dateFormats.indexOf( "YYYY" ) ] ||
+				( ( Math.ceil( now.getFullYear() / 100 ) - 1 ) + dateValues[ dateFormats.indexOf( "YY" ) ] );
+			month       = dateValues[ dateFormats.indexOf( "MM" ) ] || dateValues[ dateFormats.indexOf( "M" ) ];
+			day         = dateValues[ dateFormats.indexOf( "DD" ) ] || dateValues[ dateFormats.indexOf( "D" ) ];
+
+			// Check if dateValues & dateFormats have the same length
+			// If no, exit with error
+			if ( dateValues.length !== dateFormats.length ) {
+				return false;
+			}
+
+			valid = dateHelper( year, month, day );
+
+			// Check if options.minDate was set
+			if ( options.minDate ) {
+				minDate = options.minDate instanceof Date ? options.minDate : parse( options.minDate, format, separator );
+			}
+
+			// Check if maxDate was set
+			if ( options.maxDate ) {
+				maxDate = options.maxDate instanceof Date ? options.maxDate : parse( options.maxDate, format, separator );
+			}
+
+			if ( valid ) {
+				date = new Date( year, month - 1, day, 12, 0, 0 );
+			}
+
+			// Test for minDate and maxDate
+			switch ( true ) {
+			case ( options.minDate && !options.maxDate && valid ):
+				valid = date.getTime() >= minDate.getTime();
+				break;
+			case ( options.maxDate && !options.minDate && valid ):
+				valid = date.getTime() <= maxDate.getTime();
+				break;
+			case ( options.minDate && options.maxDate && valid ):
+				valid = date.getTime() >= minDate.getTime() && date.getTime() <= maxDate.getTime();
+				break;
+			default:
+				break;
+			}
 		}
 
-		valid = dateHelper( year, month, day );
-
-		// Check if options.minDate was set
-		if ( options.minDate ) {
-			minDate = options.minDate instanceof Date ? options.minDate : parse( options.minDate, format, separator );
-		}
-
-		// Check if maxDate was set
-		if ( options.maxDate ) {
-			maxDate = options.maxDate instanceof Date ? options.maxDate : parse( options.maxDate, format, separator );
-		}
-
-		if ( valid ) {
-			date = new Date( year, month - 1, day, 12, 0, 0 );
-		}
-
-		// Test for minDate and maxDate
-		switch ( true ) {
-		case ( options.minDate && !options.maxDate && valid ):
-			valid = date.getTime() >= minDate.getTime();
-			break;
-		case ( options.maxDate && !options.minDate && valid ):
-			valid = date.getTime() <= maxDate.getTime();
-			break;
-		case ( options.minDate && options.maxDate && valid ):
-			valid = date.getTime() >= minDate.getTime() && date.getTime() <= maxDate.getTime();
-			break;
-		default:
-			break;
+		// Format the value to match the options.outputFormat param
+		if ( valid && options.outputFormat ) {
+			$( element ).val( dateFormater( parse( value, format, separator ), options.outputFormat ) );
 		}
 
 		return valid;

@@ -638,6 +638,41 @@ test("dateMultipleFormat", function() {
 	// One assertion suffice to test this case
 	ok( method( "", true ), "Valid date dateMultipleFormat (The field is optional)" );
 
+	// Test using an array of formats
+	ok( method(
+		"04.12.2003",
+		{
+			format: [ "DD.MM.YYYY", "D.M.YYYY",  "D.MM.YYYY",  "DD.M.YYYY", "DD.MM.YY", "D.MM.YY", "DD.M.YY", "D.M.YY" ],
+			separator: "."
+		}
+	), "Valid (Format: DD.MM.YYYY)" );
+	ok( !method(
+		"32.12.2003",
+		{
+			format: [ "DD.MM.YYYY", "D.M.YYYY",  "D.MM.YYYY",  "DD.M.YYYY", "DD.MM.YY", "D.MM.YY", "DD.M.YY", "D.M.YY" ],
+			separator: "."
+		}
+	), "Invalid (Format: DD.MM.YYYY)" );
+
+	// Using the format D-M-YY
+	ok( method( "9-1-15", { format: "D-M-YY", separator: "-" } ), "Valid date dateMultipleFormat (Format: D-M-YY)" );
+
+	// Test using the options.outputFormat param
+	ok( method(
+		"1/1/2014",
+		{
+			format: "DD/MM/YYYY", outputFormat: "DD/MM/YYYY", separator: "/"
+		}
+	), "Valid date dateMultipleFormat (Format: DD/MM/YYYY, outputFormat: DD/MM/YYYY)" );
+	equal("01/01/2014", $("#firstname").val());
+	ok( method(
+		"1-1-2014",
+		{
+			format: "D-M-YYYY", outputFormat: "DD-MM-YYYY", separator: "-"
+		}
+	), "Valid date dateMultipleFormat (Format: D-M-YYYY, outputFormat: DD-MM-YYYY)" );
+	equal("01-01-2014", $("#firstname").val());
+
 	// Using the default format & separator
 	// Default is: { format: "DD/MM/YYYY", separator: "/" }
 	// options = true
