@@ -13,7 +13,7 @@
 	 */
 	function dateHelper( year, month, day ) {
 		// Check for the length of year, month and day
-		if ( year.length !== 4 || day.length > 2 || month.length > 2 || !year || !month || !day ) {
+		if ( (year.length !== 4 && year.length !== 2) || day.length > 2 || month.length > 2 || !year || !month || !day ) {
 			return false;
 		}
 
@@ -25,10 +25,21 @@
 		month = parseInt( month, 10 );
 		year  = parseInt( year, 10 );
 
-		// Validate only years between 1000 & 9999
-		// Check that month is between 1 & 12
-		if ( year < 1000 || year > 9999 || month < 1 || month > 12 ) {
+		// Validate only years between 1000 & 9999 if year.length===4
+		if (year.length===4) {
+		  if ( year < 1000 || year > 9999 ) {
 			return false;
+		  }
+		}
+		// Validate only years between 1 & 99 if year.length===2
+		if (year.length===2) {
+		  if ( year < 1 || year > 99 ) {
+			return false;
+		  }
+		}
+		// Check that month is between 1 & 12
+		if (month < 1 || month > 12) {
+		  return false;
 		}
 
 		// Days number for each month
@@ -46,7 +57,7 @@
 
 		return true;
 	}
-
+	
 	/**
 	 * Parse the given date and return a Date object
 	 *
@@ -60,10 +71,10 @@
 		dateFormat = dateFormat.split( separator );
 
 		var now = new Date(),
-			year  = value[ dateFormat.indexOf( "YYYY" ) ] ||
-			( ( Math.ceil( now.getFullYear() / 100 ) - 1 ) + value[ dateFormat.indexOf( "YY" ) ] ),
-			month = value[ dateFormat.indexOf( "MM" ) ] || value[ dateFormat.indexOf( "M" ) ],
-			day   = value[ dateFormat.indexOf( "DD" ) ] || value[ dateFormat.indexOf( "D" ) ];
+			year        = value[ $.inArray("YYYY",dateFormat) ] ||
+				( ( Math.ceil( now.getFullYear() / 100 ) - 1 ) + value[ $.inArray("YY",dateFormat) ] );
+			month       = value[ $.inArray("MM",dateFormat) ] || value[ $.inArray("M",dateFormat) ];
+			day         = value[ $.inArray("DD",dateFormat) ] || value[ $.inArray("D",dateFormat) ];
 
 		return new Date( year, month - 1, day, 12, 0, 0 );
 	}
@@ -221,10 +232,10 @@
 			separator   = options.separator || "/";
 			dateFormats = format.split( separator ); // Split the format to 3 values YYYY, MM & DD
 			dateValues  = value.split( separator );  // Split the date to 3 values year, month & day
-			year        = dateValues[ dateFormats.indexOf( "YYYY" ) ] ||
-				( ( Math.ceil( now.getFullYear() / 100 ) - 1 ) + dateValues[ dateFormats.indexOf( "YY" ) ] );
-			month       = dateValues[ dateFormats.indexOf( "MM" ) ] || dateValues[ dateFormats.indexOf( "M" ) ];
-			day         = dateValues[ dateFormats.indexOf( "DD" ) ] || dateValues[ dateFormats.indexOf( "D" ) ];
+			year        = dateValues[ $.inArray("YYYY",dateFormats) ] ||
+				( ( Math.ceil( now.getFullYear() / 100 ) - 1 ) + dateValues[ $.inArray("YY",dateFormats) ] );
+			month       = dateValues[ $.inArray("MM",dateFormats) ] || dateValues[ $.inArray("M",dateFormats) ];
+			day         = dateValues[ $.inArray("DD",dateFormats) ] || dateValues[ $.inArray("D",dateFormats) ];
 
 			// Check if dateValues & dateFormats have the same length
 			// If no, exit with error
@@ -262,11 +273,10 @@
 			default:
 				break;
 			}
-		}
-
-		// Format the value to match the options.outputFormat param
-		if ( valid && options.outputFormat ) {
-			$( element ).val( dateFormater( parse( value, format, separator ), options.outputFormat ) );
+  		// Format the value to match the options.outputFormat param 
+  		if ( valid && options.outputFormat ) {
+  			$( element ).val( dateFormater( parse( value, format, options.separator ), options.outputFormat ) );
+  		}					
 		}
 
 		return valid;
